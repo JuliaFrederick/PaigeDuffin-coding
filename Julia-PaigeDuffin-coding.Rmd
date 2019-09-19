@@ -1,0 +1,301 @@
+---
+title: "Julia Updates to Paige Duffin Coding Exercise"
+output:
+  html_document:
+    df_print: paged
+---
+
+## Loading and Checking Data
+
+---
+
+#### 1\. Check if `dslabs` is already installed 
+(using new `%in%` oporator I learned in chapter 3 of the R Basics book!):
+```{r}
+("dslabs") %in% installed.packages()
+("tidyverse") %in% installed.packages()
+
+```
+Yes, its already installed.
+
+---
+
+#### 2\. Load `dslabs` package.
+```{r}
+library(dslabs)
+library(tidyverse)
+library(skimr)
+library(dplyr)
+```
+
+---
+
+#### 3\. We're using a dataset within the package `dslabs` called `gapminder`. Pull up the help page for the data to see what it contains:
+```{r}
+#help("gapminder")
+```
+
+Highlights of R Documentation on `gapminder`  
+
+* **Description:** Health and income outcomes for 184 countries from 1960 to 2016. Also includes two character vectors, oecd and opec, with the names of OECD and OPEC countries from 2016.  
+* **Format:** An object of class `data.frame`. 
+
+---
+
+#### 4\. Inspect structure of the data frame.
+```{r}
+str(gapminder)
+```
+
+---
+
+#### 5\. Inspect summary of the data frame:
+```{r}
+summary(gapminder)
+```
+
+---
+
+#### 6\. Determine what type of object `gapminder` is (even though we already read that it was a data frame in the R documentation file- just double checking!). 
+```{r}
+class(gapminder)
+```
+
+#### 7\. Using new functions from the tidyverse package to look inspect the dataset
+```{r}
+skim(gapminder)
+glimpse(gapminder)
+```
+
+---
+
+## Processing Data
+
+---
+
+#### 7\. Assign only the African countries to a new variable called `africadata`.
+
+First inspecting what all the continent levels are. 
+```{r}
+levels(gapminder$continent)
+```
+
+Now creating new variable for "Africa" continent data. 
+```{r}
+africadata <- gapminder[gapminder$continent %in% "Africa",]
+africadata
+
+tidyafrica <- gapminder %>% filter(continent == "Africa") %>%
+  select(infant_mortality, life_expectancy, population, country)
+```
+
+---
+
+#### 8\. Inspect structure and summary info for `africadata`:
+```{r}
+str(africadata)
+```
+Yes! I have the anticipated 2907 obs., down from 10545.
+
+```{r}
+summary(africadata)
+```
+Looks good!
+
+---
+
+#### 9\. Subset the `africadata` data again so that it only contains `infant_mortality` and `life_expectancy` data. 
+I'm naming this new object `infmort_lifexp`. 
+```{r}
+infmort <- africadata$infant_mortality
+lifexp <- africadata$life_expectancy
+infmort_lifexp <- data.frame("infant_mortality" = infmort, "life_expectancy" = lifexp)
+head(infmort_lifexp)
+```
+
+---
+
+#### 10\. Subset the `africadata` data a second time so that it only contains `population` and `life_expectancy` data. 
+I'm naming this new object `pop_lifexp`. 
+```{r}
+popsize <- africadata$population
+lifexp <- africadata$life_expectancy
+pop_lifexp <- data.frame("population" = popsize, "life_expectancy" = lifexp)
+head(pop_lifexp)
+```
+
+---
+
+#### 11\. Inspect both new variables.
+```{r}
+str(infmort_lifexp)
+summary(infmort_lifexp)
+```
+```{r}
+str(pop_lifexp)
+summary(pop_lifexp)
+```
+
+---
+
+## Plotting
+
+Instructions pulled right from [MADA Course GitHub](https://andreashandel.github.io/MADAcourse/Exercise_Coding.html):
+_Using the new variables you created, plot life expectancy as a function of infant mortality and as a function of population size. Make two separate plots. Use base R plot commands, i.e., the `plot` function. Plot the data as points. For the plot with population size on the x-axis, set the x-axis to a log scale._
+
+---
+
+#### 12\. Plot life expectancy as a function of infant mortality.
+```{r}
+Infant_Mortality <- infmort_lifexp$infant_mortality
+Life_Expectancy <- infmort_lifexp$life_expectancy
+plot(Infant_Mortality, Life_Expectancy)
+
+tidyafrica %>%
+  select(infant_mortality, life_expectancy) %>% 
+  ggplot() + 
+    geom_point(aes(x=infant_mortality, y=life_expectancy, color = tidyafrica$country))
+```
+
+---
+
+#### 13\. Plot life expectancy as a function of log(population size).
+```{r}
+Log_Population_Size <- log(pop_lifexp$population)
+Life_Expectancy <- pop_lifexp$life_expectancy
+plot(Log_Population_Size, Life_Expectancy)
+
+tidyafrica %>%
+  select(population, life_expectancy) %>% 
+  ggplot() + 
+    geom_point(aes(x=log(population), y=life_expectancy, color = tidyafrica$country))
+```
+
+---
+
+#### 14\. Interpreting results.  
+* Yes, I see a negative correlation between infant mortality and life expectancy. This is to be expected.  
+* No, I don't really see a prominant positive correlation between log-normalized population size and life expectancy.
+* Regarding the "streaks": 
+```{r}
+head(africadata)
+```
+
+I notice the "year" column. Was each country sampled more than one year? I'll check by just isolating the data from one country.
+```{r}
+Algeria <- africadata[africadata$country %in% "Algeria",]
+Algeria$year
+```
+
+Yes! It was sampled yearly. Let me quickly see if just plotting Algeria creates the streaks I see. 
+```{r}
+Alg_pop <- Algeria$population
+Alg_lifexp <- Algeria$life_expectancy
+Alg_pop_lifexp <- data.frame("Algeria_population" = Alg_pop, "Algeria_life_expectancy" = Alg_lifexp)
+Alg_Log_Pop_Size <- log(Alg_pop_lifexp$Algeria_population)
+Alg_Life_Expectancy <- Alg_pop_lifexp$Algeria_life_expectancy
+plot(Alg_Log_Pop_Size, Alg_Life_Expectancy)
+```
+Yes! That completely supports what I'd expect, given my hypothesis that the "streaks" are caused by data points across years for each country, as metrics like population size are expected to change gradually year to year. 
+
+---
+
+## More Data Processing
+
+---
+
+#### 15\. Determine which years have missing data for infant mortality.
+```{r}
+index_na <- is.na(africadata$infant_mortality)
+africadata$year[index_na]
+```
+Findings: Missing data in years 1960:1981, 2016
+
+---
+
+#### 16\. Extracting only data from the year 2000. Inspect object. 
+```{r}
+africa_2000 <- africadata[africadata$year %in% 2000,]
+str(africa_2000)
+summary(africa_2000)
+
+tidy2000 <- gapminder %>% filter(continent == "Africa", year == 2000) %>%
+  select(infant_mortality, life_expectancy, population, country)
+```
+Yes! I've now narrowed it down to 51 obs. of  9 variables. 
+
+---
+
+## More Plotting
+Create same plots as before with the full `africadata` set, now just with `africa_2000`. 
+
+---
+
+#### 17\. Plot life expectancy as a function of infant mortality in the year 2000.
+```{r}
+Infant_Mortality_2000 <- africa_2000$infant_mortality
+Life_Expectancy_2000 <- africa_2000$life_expectancy
+plot(Infant_Mortality_2000, Life_Expectancy_2000)
+
+tidy2000 %>%
+  select(infant_mortality, life_expectancy) %>% 
+  ggplot(aes(x=infant_mortality, y=life_expectancy, color = tidy2000$country)) + 
+    geom_point() +
+  stat_smooth(method = "lm", col = "red")
+```
+
+---
+
+#### 18\. Plot life expectancy as a function of log(population size) in the year 2000.
+```{r}
+log_Pop_Size_2000 <- log(africa_2000$population)
+Life_Expectancy_2000 <- africa_2000$life_expectancy
+plot(log_Pop_Size_2000, Life_Expectancy_2000)
+```
+
+---
+
+## A Simple Fit
+
+Use `lm` function to apply statistics to this data.
+```{r}
+?lm
+```
+Usage: 
+`lm(formula, data, subset, weights, na.action, method = "qr", model = TRUE, x = FALSE, y = FALSE, qr = TRUE, singular.ok = TRUE, contrasts = NULL, offset, ...)`
+
+---
+
+#### 19\. Fit life expectancy as the outcome and infant mortality as the predictor.
+Note: `lm(outcome~predictor)`
+```{r}
+fit1 <- lm(Life_Expectancy_2000 ~ Infant_Mortality_2000)
+summary(fit1)
+```
+
+p-value for fit1 is 2.82e-08.
+
+---
+
+#### 20\. Fit life expectancy as the outcome and infant mortality as the predictor.
+Note: `lm(outcome~predictor)`. 
+
+Not sure if I should use log(Pop Size) or just Pop Size as the predictor, so I'm going to try both. 
+
+```{r}
+Pop_Size_2000 <- africa_2000$population
+fit2 <- lm(Life_Expectancy_2000 ~ Pop_Size_2000)
+summary(fit2)
+```
+
+```{r}
+fit3 <- lm(Life_Expectancy_2000 ~ log_Pop_Size_2000)
+summary(fit3)
+```
+
+Both fit2 and fit3 p-values (0.6159 and 0.4755, respectively) are well over that of fit1 (2.82e-08), so whether I use the log-normalized pop data or the raw pop data, the outcome is the same. 
+
+---
+
+#### 21\. Interpreting results. 
+Both fit2 and fit3 p-values (0.6159 and 0.4755, respectively) are well over that of fit1 (2.82e-08), so whether I use the log-normalized pop data or the raw pop data, the outcome is the same: **The linear models suggest that infant mortality is a significant predictor of life expectancy in Africa in 2000, while population size is not.** This conclusion makes sense based on the plots generated. 
